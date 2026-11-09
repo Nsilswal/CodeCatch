@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          swift --version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Build app bundle
+        run: ./scripts/build-app.sh
+
+      - name: Check app bundle
+        run: |
+          test -x build/CodeCatch.app/Contents/MacOS/CodeCatch
+          test -f build/CodeCatch.app/Contents/Resources/AppIcon.icns
+          plutil -lint build/CodeCatch.app/Contents/Info.plist
+          codesign --verify --verbose build/CodeCatch.app

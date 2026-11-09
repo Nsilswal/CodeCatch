@@ -1,11 +1,43 @@
-# CodeCatch
+<p align="center">
+  <img src="docs/images/icon.png" width="128" height="128" alt="CodeCatch icon">
+</p>
+
+<h1 align="center">CodeCatch</h1>
+
+<p align="center">
+  <a href="https://github.com/Nsilswal/CodeCatch/actions/workflows/ci.yml"><img src="https://github.com/Nsilswal/CodeCatch/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/macOS-13%2B-lightgrey.svg" alt="macOS 13 or later">
+</p>
 
 A small macOS menu bar app. It watches incoming iMessages and SMS for verification (MFA / 2FA / OTP) codes. It copies each code to your clipboard right away, so you can press **⌘V** in any browser or app.
 
-- **Native and light.** Pure Swift and AppKit. The app is about 150 KB. It has no dependencies, no network access, and no Dock icon.
+- **Native and light.** Pure Swift, AppKit, and SwiftUI. The app is under 500 KB. It has no dependencies, no network access, and no Dock icon.
 - **Event driven.** It wakes up only when the Messages folder changes (FSEvents). A 15-second fallback timer covers missed events.
 - **Private.** It opens the Messages database read-only. Codes stay in memory only. Nothing goes to disk or to the network. Copied codes carry the `org.nspasteboard.ConcealedType` marker, so clipboard history apps skip them.
 - **Works everywhere.** Safari can already autofill codes from Messages. CodeCatch also works in Chrome, Firefox, Arc, and desktop apps.
+
+## Screenshots
+
+When a code arrives, a small popup drops down from the menu bar icon. It never takes focus, so ⌘V still pastes into your app.
+
+<p align="center">
+  <img src="docs/images/popup-light.png" width="320" alt="Copied popup in light mode">
+  &nbsp;
+  <img src="docs/images/popup-dark.png" width="320" alt="Copied popup in dark mode">
+</p>
+
+On first launch, a short setup window walks you through Full Disk Access. You drag the app icon into the list in System Settings.
+
+<p align="center">
+  <img src="docs/images/onboarding-welcome.png" width="400" alt="Welcome step of the setup window">
+  &nbsp;
+  <img src="docs/images/onboarding-access.png" width="400" alt="Full Disk Access step of the setup window">
+</p>
+
+<p align="center">
+  <img src="docs/images/drop-guide.png" width="300" alt="Floating guide next to System Settings with the draggable app icon">
+</p>
 
 ## Menu bar
 
@@ -85,6 +117,10 @@ scripts/build-app.sh     # builds, wraps, and ad-hoc signs the .app
 scripts/make-icon.swift  # renders Resources/AppIcon.svg to Resources/AppIcon.icns
 Resources/               # app icon (SVG source and generated .icns)
 ```
+
+## Contributing
+
+Bug reports, missed codes, and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
