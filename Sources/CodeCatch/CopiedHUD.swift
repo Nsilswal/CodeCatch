@@ -1,5 +1,6 @@
 import AppKit
 import QuartzCore
+import SwiftUI
 
 /// A small popup that drops down from the menu bar icon when a code is copied.
 ///
@@ -8,14 +9,18 @@ import QuartzCore
 /// Messages banner, and fades out on its own.
 @MainActor
 final class CopiedHUD {
+    fileprivate final class Model: ObservableObject {
+        @Published var code = ""
+        @Published var sender: String?
+        @Published var token = UUID()
+    }
+
     private let panel: NSPanel
-    private let iconView = NSImageView()
-    private let titleLabel = NSTextField(labelWithString: "")
-    private let hintLabel = NSTextField(labelWithString: "⌘V to paste")
+    private let model = Model()
     private var hideWork: DispatchWorkItem?
 
-    private let size = NSSize(width: 220, height: 56)
-    private let showFor: TimeInterval = 2.5
+    private let size = NSSize(width: 320, height: 68)
+    private let showFor: TimeInterval = 2.8
 
     init() {
         panel = HUDPanel(
@@ -34,57 +39,19 @@ final class CopiedHUD {
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
 
-        // A solid rounded view. The window is clear, so its shadow follows
-        // the pill shape and no square box shows behind it.
-        let pill = NSView(frame: NSRect(origin: .zero, size: size))
-        pill.wantsLayer = true
-        pill.layer?.backgroundColor = NSColor(white: 0.11, alpha: 0.94).cgColor
-        pill.layer?.cornerRadius = size.height / 2
-        pill.layer?.cornerCurve = .continuous
-        pill.layer?.borderWidth = 0.5
-        pill.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
-
-        let config = NSImage.SymbolConfiguration(pointSize: 26, weight: .semibold)
-            .applying(.init(paletteColors: [.white, .systemGreen]))
-        iconView.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "Copied")?
-            .withSymbolConfiguration(config)
-        iconView.wantsLayer = true
-
-        titleLabel.font = .monospacedDigitSystemFont(ofSize: 15, weight: .semibold)
-        titleLabel.textColor = .white
-        titleLabel.lineBreakMode = .byTruncatingTail
-        hintLabel.font = .systemFont(ofSize: 11, weight: .medium)
-        hintLabel.textColor = NSColor.white.withAlphaComponent(0.65)
-
-        let text = NSStackView(views: [titleLabel, hintLabel])
-        text.orientation = .vertical
-        text.alignment = .leading
-        text.spacing = 1
-
-        let row = NSStackView(views: [iconView, text])
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 10
-        row.edgeInsets = NSEdgeInsets(top: 0, left: 14, bottom: 0, right: 18)
-        row.translatesAutoresizingMaskIntoConstraints = false
-
-        pill.addSubview(row)
-        NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: pill.leadingAnchor),
-            row.trailingAnchor.constraint(lessThanOrEqualTo: pill.trailingAnchor),
-            row.centerYAnchor.constraint(equalTo: pill.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 30),
-            iconView.heightAnchor.constraint(equalToConstant: 30),
-        ])
-
-        let click = NSClickGestureRecognizer(target: self, action: #selector(dismiss))
-        pill.addGestureRecognizer(click)
-        panel.contentView = pill
+        // The window is clear, so its shadow follows the card's rounded shape.
+        let host = NSHostingView(rootView: CopiedCard(model: model, showFor: showFor) { [weak self] in
+            self?.dismiss()
+        })
+        host.frame = NSRect(origin: .zero, size: size)
+        panel.contentView = host
     }
 
     /// Shows the popup under `anchor` (the status item button).
-    func show(code: String, under anchor: NSStatusBarButton?) {
-        titleLabel.stringValue = "Copied \(code)"
+    func show(code: String, sender: String? = nil, under anchor: NSStatusBarButton?) {
+        model.code = code
+        model.sender = sender
+        model.token = UUID()  // restarts the check pop and the countdown bar
         hideWork?.cancel()
 
         let final = frame(under: anchor)
@@ -103,7 +70,6 @@ final class CopiedHUD {
         } else {
             panel.setFrame(final, display: true)
         }
-        popCheckmark()
 
         let work = DispatchWorkItem { [weak self] in self?.dismiss() }
         hideWork = work
@@ -125,26 +91,6 @@ final class CopiedHUD {
                 self.panel.orderOut(nil)
             }
         })
-    }
-
-    /// Springs the checkmark from small to full size.
-    private func popCheckmark() {
-        guard let layer = iconView.layer else { return }
-        // Scale around the center, not the bottom-left corner.
-        layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        layer.position = CGPoint(x: iconView.frame.midX, y: iconView.frame.midY)
-
-        let spring = CASpringAnimation(keyPath: "transform.scale")
-        spring.fromValue = 0.3
-        spring.toValue = 1.0
-        spring.mass = 0.6
-        spring.stiffness = 220
-        spring.damping = 11
-        spring.initialVelocity = 4
-        spring.duration = spring.settlingDuration
-        spring.beginTime = CACurrentMediaTime() + 0.08
-        spring.fillMode = .backwards
-        layer.add(spring, forKey: "pop")
     }
 
     /// Centers the popup under the menu bar icon. In full screen the menu bar
@@ -171,4 +117,97 @@ final class CopiedHUD {
 private final class HUDPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+}
+
+/// The popup's content. It uses the same card style, teal accent, and
+/// type as the onboarding window, and follows light and dark mode.
+private struct CopiedCard: View {
+    @ObservedObject var model: CopiedHUD.Model
+    var showFor: TimeInterval
+    var dismiss: () -> Void
+
+    @State private var checkScale: CGFloat = 1
+    @State private var remaining: CGFloat = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Brand.teal)
+                .frame(width: 38, height: 38)
+                .background(Brand.teal.opacity(0.14), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .scaleEffect(checkScale)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(model.code)
+                    .font(.system(size: 19, weight: .semibold, design: .rounded).monospacedDigit())
+                    .tracking(1.5)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(subtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: 4)
+
+            VStack(spacing: 3) {
+                Text("⌘V")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.14)))
+                Text("to paste")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 16)
+        .frame(width: 320, height: 68)
+        .background(.regularMaterial, in: shape)
+        .overlay(alignment: .bottom) {
+            // Time left before the popup goes away.
+            // The card's rounded corners clip it into a thin edge.
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(Brand.teal.opacity(0.75))
+                    .frame(width: max(0, geo.size.width * remaining), height: 3)
+            }
+            .frame(height: 3)
+        }
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.1)))
+        .clipShape(shape)
+        .contentShape(shape)
+        .onTapGesture(perform: dismiss)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Copied \(model.code). Press Command V to paste.")
+        .onChange(of: model.token) { _ in restart() }
+        .onAppear(perform: restart)
+    }
+
+    private var subtitle: String {
+        if let sender = model.sender, !sender.isEmpty { return "Copied from \(sender)" }
+        return "Copied from Messages"
+    }
+
+    private func restart() {
+        var t = Transaction()
+        t.disablesAnimations = true
+        withTransaction(t) {
+            remaining = 1
+            checkScale = reduceMotion ? 1 : 0.4
+        }
+        DispatchQueue.main.async {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) { checkScale = 1 }
+            withAnimation(.linear(duration: showFor)) { remaining = 0 }
+        }
+    }
 }

@@ -81,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.1) { [weak self] in self?.updateIcon() }
 
-        if settings.notify { hud.show(code: code, under: statusItem.button) }
+        if settings.notify { hud.show(code: code, sender: sender, under: statusItem.button) }
     }
 
     private func copy(_ code: String) {
