@@ -65,6 +65,7 @@ make test     # unit tests (extractor, attributedBody decoder, watcher against a
 make app      # build build/CodeCatch.app
 make run      # build and open
 CODECATCH_DEMO=1 .build/debug/CodeCatch   # show the copied popup at launch
+swift scripts/make-icon.swift             # regenerate the app icon after editing the SVG
 ```
 
 Layout:
@@ -77,6 +78,8 @@ Sources/CodeCatchCore/   # logic, unit tested
   MessageWatcher.swift        # FSEvents + fallback timer → onCode callback
 Sources/CodeCatch/       # menu bar app (AppKit)
 scripts/build-app.sh     # builds, wraps, and ad-hoc signs the .app
+scripts/make-icon.swift  # renders Resources/AppIcon.svg to Resources/AppIcon.icns
+Resources/               # app icon (SVG source and generated .icns)
 ```
 
 ## License

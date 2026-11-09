@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- CodeCatch app icon: a fishhook catching a code tile. -->
+  <g transform="translate(512 512) scale(6.3385) translate(-260 -105)">
+    <rect x="195" y="40" width="130" height="130" rx="29" fill="#0F766E"/>
+    <circle cx="276" cy="58" r="7" fill="none" stroke="#FFFFFF" stroke-width="5"/>
+    <path d="M276 70 V116 A23 23 0 0 1 230 116 V104 L242 114" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="240" y="80" width="28" height="28" rx="8" fill="#FB923C"/>
+    <circle cx="247" cy="94" r="2.6" fill="#FFFFFF"/>
+    <circle cx="254" cy="94" r="2.6" fill="#FFFFFF"/>
+    <circle cx="261" cy="94" r="2.6" fill="#FFFFFF"/>
+  </g>
+</svg>
