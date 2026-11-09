@@ -21,7 +21,7 @@ The menu has these items:
 - Status
 - The last 5 codes. Click one to copy it again.
 - **Enabled**
-- **Show Notifications**
+- **Show Copied Popup**: a small popup drops down from the icon when a code is copied. It never takes focus, so ⌘V still goes to your app.
 - **Clear Clipboard After 2 Minutes**
 - **Launch at Login**
 - **Quit**
@@ -56,7 +56,7 @@ Most MFA codes come as SMS. To get them on your Mac, open **Settings → Apps �
 2. CodeCatch reads rows in `message` that are newer than the last row it saw. It skips messages you sent and messages older than 5 minutes.
 3. On macOS 13 and later, the message text is often only in the `attributedBody` blob. CodeCatch pulls the plain string out of that typedstream blob.
 4. `CodeExtractor` requires a keyword such as *code, verification, OTP, passcode, sign in, 验证码*. Then it picks the 4–8 digit number closest to the keyword. It skips phone numbers, prices, decimals, and years. It also handles `G-123456`, `123 456`, and uppercase alphanumeric codes.
-5. The newest code goes to the clipboard. A notification is optional.
+5. The newest code goes to the clipboard. A small popup under the menu bar icon confirms the copy. It uses no macOS notifications, so it needs no notification permission.
 
 ## Development
 
@@ -64,6 +64,7 @@ Most MFA codes come as SMS. To get them on your Mac, open **Settings → Apps �
 make test     # unit tests (extractor, attributedBody decoder, watcher against a fake chat.db)
 make app      # build build/CodeCatch.app
 make run      # build and open
+CODECATCH_DEMO=1 .build/debug/CodeCatch   # show the copied popup at launch
 ```
 
 Layout:

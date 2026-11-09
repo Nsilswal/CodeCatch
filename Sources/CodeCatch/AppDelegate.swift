@@ -1,7 +1,6 @@
 import AppKit
 import CodeCatchCore
 import ServiceManagement
-import UserNotifications
 
 private struct CaughtCode {
     let code: String
@@ -15,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let menu = NSMenu()
     private let watcher = MessageWatcher()
     private let settings = Settings()
+    private lazy var hud = CopiedHUD()
 
     private var recent: [CaughtCode] = []  // memory only, never written to disk
     private var flashUntil: Date?
@@ -24,8 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let clearDelay: TimeInterval = 120
     private let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
 
-    /// Running as a real .app bundle (not `swift run`). Notifications and
-    /// launch-at-login only work inside a bundle.
+    /// Running as a real .app bundle (not `swift run`). Launch at login
+    /// only works inside a bundle.
     private var isBundled: Bool { Bundle.main.bundleIdentifier != nil }
 
     // MARK: - Lifecycle
@@ -45,8 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         if settings.enabled { watcher.start() }
-        if settings.notify { requestNotificationPermission() }
         updateIcon()
+
+        // Development aid: `CODECATCH_DEMO=1` shows the copied popup at launch.
+        if ProcessInfo.processInfo.environment["CODECATCH_DEMO"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.caught(code: "482913", sender: nil)
+            }
+        }
     }
 
     // MARK: - Code handling
@@ -60,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.1) { [weak self] in self?.updateIcon() }
 
-        if settings.notify { notify(code: code, sender: sender) }
+        if settings.notify { hud.show(code: code, under: statusItem.button) }
     }
 
     private func copy(_ code: String) {
@@ -139,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(toggle("Enabled", settings.enabled, #selector(toggleEnabled)))
-        menu.addItem(toggle("Show Notifications", settings.notify, #selector(toggleNotify)))
+        menu.addItem(toggle("Show Copied Popup", settings.notify, #selector(toggleNotify)))
         menu.addItem(toggle("Clear Clipboard After 2 Minutes", settings.autoClear, #selector(toggleAutoClear)))
         let login = toggle("Launch at Login", SMAppService.mainApp.status == .enabled, #selector(toggleLogin))
         login.isEnabled = isBundled
@@ -187,7 +193,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleNotify() {
         settings.notify.toggle()
-        if settings.notify { requestNotificationPermission() }
     }
 
     @objc private func toggleAutoClear() {
@@ -212,7 +217,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSWorkspace.shared.open(url)
     }
 
-    // MARK: - Alerts & notifications
+    // MARK: - Alerts
 
     private func showAccessAlertOnce() {
         guard !shownAccessAlert else { return }
@@ -237,19 +242,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         a.messageText = title
         a.informativeText = text
         a.runModal()
-    }
-
-    private func requestNotificationPermission() {
-        guard isBundled else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { _, _ in }
-    }
-
-    private func notify(code: String, sender: String?) {
-        guard isBundled else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Copied code \(code)"
-        content.body = sender.map { "From \($0). Press ⌘V to paste." } ?? "Press ⌘V to paste."
-        let req = UNNotificationRequest(identifier: "code", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(req)
     }
 }
