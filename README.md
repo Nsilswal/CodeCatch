@@ -24,6 +24,7 @@ The menu has these items:
 - **Show Copied Popup**: a small popup drops down from the icon when a code is copied. It never takes focus, so ⌘V still goes to your app.
 - **Clear Clipboard After 2 Minutes**
 - **Launch at Login**
+- **Welcome & Setup…**: opens the setup window again.
 - **Quit**
 
 ## Install
@@ -38,11 +39,13 @@ make install        # builds build/CodeCatch.app, copies it to /Applications, an
 
 ### Grant Full Disk Access (one time)
 
-macOS protects `~/Library/Messages/chat.db`. On first launch, CodeCatch shows a prompt:
+macOS protects `~/Library/Messages/chat.db`. On first launch, CodeCatch opens a short setup window: Welcome, Full Disk Access, preferences, and a final tip.
 
-1. Click **Open System Settings**. You can also go to **Privacy & Security → Full Disk Access**.
-2. Turn on **CodeCatch**. If it is not in the list, click **+** and choose `/Applications/CodeCatch.app`.
-3. CodeCatch checks again every 15 seconds. The icon changes to the lock shield when it works.
+1. On the **Allow Full Disk Access** step, click **Open System Settings**. A small guide with the CodeCatch icon appears next to the System Settings window.
+2. Drag the icon into the **Full Disk Access** list. If CodeCatch is already in the list, turn on its switch.
+3. The step turns green within a second, and the menu bar icon changes to the lock shield.
+
+You can skip the step and come back later. Choose **Grant Full Disk Access…** or **Welcome & Setup…** in the menu. If access goes missing later, CodeCatch opens this step again on launch.
 
 > **Note:** The build uses an ad-hoc signature. If you rebuild, macOS can treat the new build as a different app. If the warning icon comes back after `make install`, remove CodeCatch from Full Disk Access, add it again, and relaunch it.
 
@@ -65,6 +68,7 @@ make test     # unit tests (extractor, attributedBody decoder, watcher against a
 make app      # build build/CodeCatch.app
 make run      # build and open
 CODECATCH_DEMO=1 .build/debug/CodeCatch   # show the copied popup at launch
+build/CodeCatch.app/Contents/MacOS/CodeCatch --onboarding   # show the setup window again
 swift scripts/make-icon.swift             # regenerate the app icon after editing the SVG
 ```
 

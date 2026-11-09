@@ -8,6 +8,7 @@ struct Settings {
             "enabled": true,
             "notify": true,
             "autoClear": false,
+            "onboarded": false,
         ])
     }
 
@@ -25,5 +26,11 @@ struct Settings {
     var autoClear: Bool {
         get { d.bool(forKey: "autoClear") }
         nonmutating set { d.set(newValue, forKey: "autoClear") }
+    }
+
+    /// The user has seen the onboarding window (finished or closed it).
+    var onboarded: Bool {
+        get { d.bool(forKey: "onboarded") }
+        nonmutating set { d.set(newValue, forKey: "onboarded") }
     }
 }

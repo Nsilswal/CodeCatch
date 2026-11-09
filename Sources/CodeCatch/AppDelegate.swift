@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let watcher = MessageWatcher()
     private let settings = Settings()
     private lazy var hud = CopiedHUD()
+    private lazy var onboarding = OnboardingController(settings: settings)
 
     private var recent: [CaughtCode] = []  // memory only, never written to disk
     private var flashUntil: Date?
@@ -44,8 +45,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if case .noAccess = state { self?.showAccessAlertOnce() }
         }
 
+        onboarding.onAccessGranted = { [weak self] in
+            self?.watcher.check()
+            self?.updateIcon()
+        }
+        onboarding.onTryPopup = { [weak self] in
+            guard let self else { return }
+            self.hud.show(code: "482913", under: self.statusItem.button)
+        }
+
         if settings.enabled { watcher.start() }
         updateIcon()
+
+        let args = ProcessInfo.processInfo.arguments
+        if !settings.onboarded || args.contains("--onboarding") {
+            onboarding.show()
+        }
 
         // Development aid: `CODECATCH_DEMO=1` shows the copied popup at launch.
         if ProcessInfo.processInfo.environment["CODECATCH_DEMO"] != nil {
@@ -121,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(disabled("CodeCatch: \(status)"))
 
         if case .noAccess = watcher.state {
-            menu.addItem(item("Grant Full Disk Access…", #selector(openFullDiskAccess)))
+            menu.addItem(item("Grant Full Disk Access…", #selector(showAccessStep)))
         }
 
         menu.addItem(.separator())
@@ -152,6 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(login)
 
         menu.addItem(.separator())
+        menu.addItem(item("Welcome & Setup…", #selector(showOnboarding)))
         let quit = item("Quit CodeCatch", #selector(NSApplication.terminate(_:)))
         quit.target = NSApp
         quit.keyEquivalent = "q"
@@ -212,28 +228,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    @objc private func openFullDiskAccess() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
-        NSWorkspace.shared.open(url)
-    }
+    @objc private func showOnboarding() { onboarding.show() }
+
+    @objc private func showAccessStep() { onboarding.show(at: .access) }
 
     // MARK: - Alerts
 
+    /// Full Disk Access is missing (first launch, or the user turned it off).
+    /// Opens the drag-and-drop access step once per launch.
     private func showAccessAlertOnce() {
-        guard !shownAccessAlert else { return }
+        guard !shownAccessAlert, settings.onboarded, !onboarding.isOpen else { return }
         shownAccessAlert = true
-        NSApp.activate(ignoringOtherApps: true)
-        let a = NSAlert()
-        a.messageText = "CodeCatch needs Full Disk Access"
-        a.informativeText = """
-            To read incoming verification codes, CodeCatch needs read-only access to your Messages database.
-
-            Open System Settings → Privacy & Security → Full Disk Access and turn on CodeCatch. \
-            CodeCatch checks again on its own every few seconds.
-            """
-        a.addButton(withTitle: "Open System Settings")
-        a.addButton(withTitle: "Later")
-        if a.runModal() == .alertFirstButtonReturn { openFullDiskAccess() }
+        onboarding.show(at: .access)
     }
 
     private func alert(_ title: String, _ text: String) {

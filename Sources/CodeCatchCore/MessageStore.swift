@@ -31,6 +31,20 @@ public final class MessageStore {
         self.path = path
     }
 
+    /// False only when macOS blocks the database (no Full Disk Access).
+    /// Other errors, such as a missing database, count as access, because
+    /// the permission cannot be the cause.
+    public func hasAccess() -> Bool {
+        do {
+            _ = try maxRowID()
+            return true
+        } catch let e as MessageStoreError where e.isPermissionError {
+            return false
+        } catch {
+            return true
+        }
+    }
+
     public func maxRowID() throws -> Int64 {
         try withDB { db in
             let stmt = try prepare(db, "SELECT IFNULL(MAX(ROWID), 0) FROM message")
